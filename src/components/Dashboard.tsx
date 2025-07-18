@@ -5,16 +5,19 @@ import { DonationChart } from './DonationChart';
 import { RetentionChart } from './RetentionChart';
 import { EnhancedForecastCard } from './EnhancedForecastCard';
 import { CorrelationAnalysis } from './CorrelationAnalysis';
+import { AIDialogBox } from './AIDialogBox';
 import { Users, DollarSign, TrendingUp, Gift } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/helpers';
 
 interface DashboardProps {
   analysis: AnalysisResult;
+  donorData: any[];
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ analysis }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ analysis, donorData }) => {
   const [enhancedAnalysis, setEnhancedAnalysis] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(false);
+  const [isAIDialogOpen, setIsAIDialogOpen] = React.useState(false);
 
   React.useEffect(() => {
     const loadEnhancedAnalysis = async () => {
@@ -59,7 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis }) => {
   }, [analysis]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricsCard
@@ -159,6 +162,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis }) => {
       <div>
         <CorrelationAnalysis monthlyTrends={analysis.monthlyTrends} />
       </div>
+
+      {/* AI Dialog Box */}
+      <AIDialogBox 
+        donorData={donorData}
+        isOpen={isAIDialogOpen}
+        onClose={() => setIsAIDialogOpen(false)}
+      />
+
+      {/* AI Assistant Button */}
+      {!isAIDialogOpen && (
+        <button
+          onClick={() => setIsAIDialogOpen(true)}
+          className="fixed top-20 right-4 z-40 bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 transition-colors"
+          title="Open AI Assistant"
+        >
+          <TrendingUp className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 };

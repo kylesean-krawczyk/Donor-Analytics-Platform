@@ -5,6 +5,7 @@ import { SecurityInfo } from './components/SecurityInfo';
 import { EconomicIndicators } from './components/EconomicIndicators';
 import { DataManagement } from './components/DataManagement';
 import { AllDonorsDirectory } from './components/AllDonorsDirectory';
+import { AIAnalysisChat } from './components/AIAnalysisChat';
 import { DataStorage } from './utils/dataStorage';
 import { DonorAnalytics } from './utils/analytics';
 import { DonorData, AnalysisResult } from './types';
@@ -58,6 +59,7 @@ function App() {
   const tabs = [
     { id: 'upload', label: 'Upload Data', icon: <Upload className="w-4 h-4" /> },
     { id: 'dashboard', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'ai', label: 'AI Analysis', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'donors', label: 'All Donors', icon: <Users className="w-4 h-4" /> },
     { id: 'data', label: 'Data Management', icon: <Database className="w-4 h-4" /> },
     { id: 'security', label: 'Security', icon: <Shield className="w-4 h-4" /> },
@@ -154,7 +156,23 @@ function App() {
                     Comprehensive insights from {donorData.length} donor records
                   </p>
                 </div>
-                <Dashboard analysis={analysis} />
+                <Dashboard analysis={analysis} donorData={donorData} />
+              </div>
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="space-y-8">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                    AI-Powered Analysis
+                  </h2>
+                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Ask our AI assistant to analyze your donor data, correlate with external factors, 
+                    and provide insights you might not have considered. Get personalized recommendations 
+                    based on your specific data patterns.
+                  </p>
+                </div>
+                <AIAnalysisChat donorData={donorData} />
               </div>
             )}
 

@@ -102,24 +102,18 @@ export class DonorAnalytics {
       });
     });
 
-    // If we don't have enough month-to-month data, calculate based on donor frequency patterns
-    let returningDonors = Array.from(currentMonthDonors).filter(id => 
-      lastMonthDonors.has(id)
-    ).length;
+    // Use frequency-based retention analysis for better representation
+    const frequentDonors = donors.filter(d => d.donationFrequency === 'frequent').length;
+    const regularDonors = donors.filter(d => d.donationFrequency === 'regular').length;
+    const occasionalDonors = donors.filter(d => d.donationFrequency === 'occasional').length;
+    const oneTimeDonors = donors.filter(d => d.donationFrequency === 'one-time').length;
     
-    let newDonors = currentMonthDonors.size - returningDonors;
-    let retentionRate = lastMonthDonors.size > 0 ? returningDonors / lastMonthDonors.size : 0;
+    // Returning donors = those who have given multiple times
+    const returningDonors = frequentDonors + regularDonors + occasionalDonors;
+    const newDonors = oneTimeDonors;
     
-    // If we have limited month-to-month data, use frequency-based retention
-    if (lastMonthDonors.size === 0 || currentMonthDonors.size === 0) {
-      const frequentDonors = donors.filter(d => d.donationFrequency === 'frequent' || d.donationFrequency === 'regular').length;
-      const occasionalDonors = donors.filter(d => d.donationFrequency === 'occasional').length;
-      const oneTimeDonors = donors.filter(d => d.donationFrequency === 'one-time').length;
-      
-      returningDonors = frequentDonors + occasionalDonors;
-      newDonors = oneTimeDonors;
-      retentionRate = donors.length > 0 ? returningDonors / donors.length : 0;
-    }
+    // Calculate retention rate based on overall donor behavior
+    const retentionRate = donors.length > 0 ? returningDonors / donors.length : 0;
 
     const churnRate = 1 - retentionRate;
 
