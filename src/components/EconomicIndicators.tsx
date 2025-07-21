@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, DollarSign, BarChart3, Activity, RefreshCw, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { TrendingUp, DollarSign, BarChart3, Activity, RefreshCw, AlertCircle, CheckCircle, XCircle, Cloud } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { EconomicDataService } from '../services/economicDataService';
 import { EconomicIndicator } from '../types';
@@ -11,6 +11,9 @@ export const EconomicIndicators: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedIndicator, setSelectedIndicator] = useState<EconomicIndicator | null>(null);
   const [apiStatus, setApiStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [weatherData, setWeatherData] = useState<any[] | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
 
   useEffect(() => {
     testApiConnection();
@@ -43,6 +46,38 @@ export const EconomicIndicators: React.FC = () => {
       console.error('Economic data error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWeatherData = async () => {
+    setWeatherLoading(true);
+    setWeatherError(null);
+    setWeatherData(null);
+    try {
+      // Example parameters for NOAA CDO API (Daily Summaries for Raleigh, NC in June 2024)
+      const params = new URLSearchParams({
+        datasetid: 'GHCND', // Global Historical Climatology Network - Daily
+        locationid: 'ZIP:27601', // Example: Raleigh, NC ZIP code
+        startdate: '2024-06-01',
+        enddate: '2024-06-30',
+        datatypeid: 'TMAX,TMIN,PRCP', // Max Temp, Min Temp, Precipitation
+        limit: '1000'
+      });
+
+      const response = await fetch(`/.netlify/functions/noaa-proxy?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch weather data');
+      }
+
+      const data = await response.json();
+      setWeatherData(data.results || []);
+    } catch (err) {
+      setWeatherError(err instanceof Error ? err.message : 'Unknown error fetching weather data');
+      console.error('Weather data fetch error:', err);
+    } finally {
+      setWeatherLoading(false);
     }
   };
 
@@ -147,6 +182,124 @@ export const EconomicIndicators: React.FC = () => {
             </p>
           </div>
         ))}
+      </div>
+
+      {/* Weather Data Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Cloud className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Weather Data Insights</h3>
+          </div>
+          <button
+            onClick={fetchWeatherData}
+            disabled={weatherLoading}
+            className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {weatherLoading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              <>
+                <Cloud className="w-4 h-4" />
+                <span>Fetch Weather Data</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {weatherError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <XCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-800 text-sm">{weatherError}</p>
+            </div>
+          </div>
+        )}
+
+        {weatherData && weatherData.length > 0 ? (
+          <div className="space-y-4">
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>Location:</strong> ZIP:27601 (Raleigh, NC) | <strong>Period:</strong> June 01-30, 2024 | <strong>Data Points:</strong> {weatherData.length}
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center mb-2">
+                  <TrendingUp className="w-4 h-4 text-orange-600 mr-2" />
+                  <p className="text-sm font-medium text-orange-800">Avg. Max Temperature</p>
+                </div>
+                <p className="text-xl font-bold text-orange-900">
+                  {(() => {
+                    const tmaxValues = weatherData.filter(d => d.datatype === 'TMAX').map(d => d.value);
+                    if (tmaxValues.length === 0) return 'N/A';
+                    const avgTmax = tmaxValues.reduce((sum, val) => sum + val, 0) / tmaxValues.length;
+                    const celsius = (avgTmax / 10).toFixed(1);
+                    const fahrenheit = ((avgTmax / 10) * 9/5 + 32).toFixed(1);
+                    return `${celsius}°C / ${fahrenheit}°F`;
+                  })()}
+                </p>
+              </div>
+              
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center mb-2">
+                  <Activity className="w-4 h-4 text-blue-600 mr-2" />
+                  <p className="text-sm font-medium text-blue-800">Total Precipitation</p>
+                </div>
+                <p className="text-xl font-bold text-blue-900">
+                  {(() => {
+                    const prcpValues = weatherData.filter(d => d.datatype === 'PRCP').map(d => d.value);
+                    if (prcpValues.length === 0) return 'N/A';
+                    const totalPrcp = prcpValues.reduce((sum, val) => sum + val, 0);
+                    const mm = (totalPrcp / 10).toFixed(1);
+                    const inches = (totalPrcp / 254).toFixed(2);
+                    return `${mm} mm / ${inches} in`;
+                  })()}
+                </p>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center mb-2">
+                  <BarChart3 className="w-4 h-4 text-green-600 mr-2" />
+                  <p className="text-sm font-medium text-green-800">Avg. Min Temperature</p>
+                </div>
+                <p className="text-xl font-bold text-green-900">
+                  {(() => {
+                    const tminValues = weatherData.filter(d => d.datatype === 'TMIN').map(d => d.value);
+                    if (tminValues.length === 0) return 'N/A';
+                    const avgTmin = tminValues.reduce((sum, val) => sum + val, 0) / tminValues.length;
+                    const celsius = (avgTmin / 10).toFixed(1);
+                    const fahrenheit = ((avgTmin / 10) * 9/5 + 32).toFixed(1);
+                    return `${celsius}°C / ${fahrenheit}°F`;
+                  })()}
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-600">
+                <strong>Data Source:</strong> NOAA Climate Data Online (CDO) API - Global Historical Climatology Network Daily (GHCND)
+              </p>
+              <p className="text-xs text-gray-600 mt-1">
+                <strong>Note:</strong> This is sample weather data for demonstration. In a production system, you would correlate this with your donor locations and donation dates.
+              </p>
+            </div>
+          </div>
+        ) : (
+          !weatherLoading && !weatherError && (
+            <div className="text-center py-8">
+              <Cloud className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No weather data loaded yet.</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Click "Fetch Weather Data" to load sample weather data from NOAA.
+              </p>
+            </div>
+          )
+        )}
       </div>
 
       {/* Selected Indicator Chart */}
