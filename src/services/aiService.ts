@@ -62,29 +62,46 @@ export class AIService {
 
   static async analyzeWithAI(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     try {
-      // Prepare donor data summary for AI
-      const dataSummary = this.prepareDonorDataSummary(request.donorData);
-      
-      // Fetch relevant external data based on query
-      const externalData = await this.fetchRelevantExternalData(request.query);
-      
-      // Construct AI prompt
-      const prompt = this.constructAnalysisPrompt(request.query, dataSummary, externalData);
-      
-      // Call AI service (example with OpenAI)
-      const aiResponse = await this.callAIService(prompt);
+      // Call Netlify Function directly
+      const aiResponse = await this.callNetlifyFunction(request);
       
       return {
         content: aiResponse.content,
         insights: aiResponse.insights || [],
         recommendations: aiResponse.recommendations || [],
-        data: externalData,
+        data: [],
         confidence: aiResponse.confidence || 0.8,
-        sources: this.getDataSources(request.query)
+        sources: ['Internal Donor Database']
       };
     } catch (error) {
       console.error('AI Analysis Error:', error);
       throw new Error('Failed to complete AI analysis. Please try again.');
+    }
+  }
+
+  private static async callNetlifyFunction(request: AIAnalysisRequest): Promise<any> {
+    try {
+      const response = await fetch('/.netlify/functions/anthropic-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: request.query,
+          donorData: request.donorData,
+          context: request.context
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Netlify Function error: ${response.status} - ${errorData.error || response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Netlify Function Error:', error);
+      throw error;
     }
   }
 
@@ -227,46 +244,28 @@ Format your response as JSON with the following structure:
 
   private static async callAnthropicClaude(prompt: string, apiKey: string): Promise<any> {
     try {
-      const response = await fetch(this.API_ENDPOINTS.anthropic, {
+      // Use Netlify Function instead of direct API call
+      const response = await fetch('/.netlify/functions/anthropic-proxy', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'claude-3-haiku-20240307', // Free tier model
-          max_tokens: 1500,
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
+          query: request.query,
+          donorData: request.donorData,
+          context: request.context
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(`Netlify Function error: ${response.status} - ${errorData.error || response.statusText}`);
       }
 
       const data = await response.json();
-      const aiContent = data.content[0].text;
-      
-      // Parse JSON response from AI
-      try {
-        return JSON.parse(aiContent);
-      } catch {
-        // Fallback if AI doesn't return valid JSON
-        return {
-          content: aiContent,
-          insights: [],
-          recommendations: [],
-          confidence: 0.8
-        };
-      }
+      return data;
     } catch (error) {
-      console.error('Anthropic Claude Error:', error);
+      console.error('Netlify Function Error:', error);
       throw error;
     }
   }
